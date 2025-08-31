@@ -6,6 +6,18 @@ from babel.numbers import format_decimal
 from agate import config, utils
 from agate.data_types import Number, Text
 
+# Use wcwidth's string width function if available. Otherwise just len(str).
+try:
+    from wcwidth import wcswidth
+    def ljust(text, length, padding=' '):
+        return text + padding * max(0, (length - wcswidth(text)))
+    def strlen(text):
+        return wcswidth(text)
+except ImportError:
+    def ljust(text, length, padding=' '):
+        return text.ljust(length, padding)
+    def strlen(text):
+        return len(text)
 
 def print_table(self, max_rows=20, max_columns=6, output=sys.stdout, max_column_width=20, locale=None,
                 max_precision=3):
@@ -55,7 +67,7 @@ def print_table(self, max_rows=20, max_columns=6, output=sys.stdout, max_column_
     columns_truncated = max_columns < len(self._column_names)
     column_names = []
     for column_name in self.column_names[:max_columns]:
-        if max_column_width is not None and len(column_name) > max_column_width:
+        if max_column_width is not None and strlen(column_name) > max_column_width:
             column_names.append('%s%s' % (column_name[:max_column_width - len_truncation], truncation))
         else:
             column_names.append(column_name)
@@ -63,7 +75,7 @@ def print_table(self, max_rows=20, max_columns=6, output=sys.stdout, max_column_
     if columns_truncated:
         column_names.append(ellipsis)
 
-    widths = [len(n) for n in column_names]
+    widths = [strlen(n) for n in column_names]
     number_formatters = []
     formatted_data = []
 
@@ -103,11 +115,11 @@ def print_table(self, max_rows=20, max_columns=6, output=sys.stdout, max_column_
             else:
                 v = str(v).replace('\n', '↵')
 
-            if max_column_width is not None and len(v) > max_column_width:
+            if max_column_width is not None and strlen(v) > max_column_width:
                 v = '%s%s' % (v[:max_column_width - len_truncation], truncation)
 
-            if len(v) > widths[j]:
-                widths[j] = len(v)
+            if strlen(v) > widths[j]:
+                widths[j] = strlen(v)
 
             formatted_row.append(v)
 
@@ -128,7 +140,7 @@ def print_table(self, max_rows=20, max_columns=6, output=sys.stdout, max_column_
         for j, d in enumerate(formatted_row):
             # Text is left-justified, all other values are right-justified
             if isinstance(self._column_types[j], Text):
-                output = ' %s ' % d.ljust(widths[j])
+                output = ' %s ' % ljust(d, widths[j])
             else:
                 output = ' %s ' % d.rjust(widths[j])
 
